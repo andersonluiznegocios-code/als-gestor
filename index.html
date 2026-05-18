@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALS Locadora — Gestor</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --red:#CC0000;--red2:#ff2222;--dark:#0d0d0d;--card:#161616;--card2:#1e1e1e;
+  --border:#2a2a2a;--white:#ffffff;--muted:#666;--green:#16a34a;--green2:#22c55e;
+  --yellow:#eab308;--blue:#3b82f6;--orange:#f97316;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--white);min-height:100vh}
+
+/* LAYOUT */
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{background:#111;border-right:1px solid var(--border);padding:0;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+.logo-area{padding:24px 20px;border-bottom:1px solid var(--border)}
+.logo-txt{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--red)}
+.logo-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.nav{padding:16px 10px;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;color:#888;transition:all 0.2s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--card2);color:var(--white)}
+.nav-item.active{background:rgba(204,0,0,0.12);color:var(--red);font-weight:600}
+.nav-item svg{width:17px;height:17px;flex-shrink:0}
+.nav-section{font-size:10px;color:#444;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:12px 12px 6px}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border)}
+.motorista-card{background:var(--card2);border-radius:12px;padding:12px}
+.motorista-nome{font-size:13px;font-weight:600}
+.motorista-info{font-size:11px;color:var(--muted);margin-top:2px}
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green2);margin-right:5px}
+
+/* MAIN */
+.main{padding:28px;overflow-y:auto}
+.page{display:none}
+.page.active{display:block}
+
+/* HEADER */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.page-title{font-family:'Syne',sans-serif;font-size:24px;font-weight:800}
+.page-sub{font-size:13px;color:var(--muted);margin-top:3px}
+.btn{padding:9px 18px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:7px}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:var(--red2)}
+.btn-ghost{background:var(--card2);color:#aaa;border:1px solid var(--border)}.btn-ghost:hover{color:#fff;border-color:#444}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:var(--green2);color:#000}
+
+/* CARDS GRID */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;transition:all 0.2s}
+.card:hover{border-color:#333}
+.card-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.card-val{font-family:'Syne',sans-serif;font-size:26px;font-weight:800}
+.card-val.red{color:var(--red)}
+.card-val.green{color:var(--green2)}
+.card-val.yellow{color:var(--yellow)}
+.card-val.blue{color:var(--blue)}
+.card-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.card-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:17px}
+.ci-red{background:rgba(204,0,0,0.15)}
+.ci-green{background:rgba(34,197,94,0.12)}
+.ci-yellow{background:rgba(234,179,8,0.12)}
+.ci-blue{background:rgba(59,130,246,0.12)}
+
+/* SECTION */
+.section{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:18px;overflow:hidden}
+.section-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.section-head h3{font-family:'Syne',sans-serif;font-size:15px;font-weight:700}
+.section-body{padding:20px}
+
+/* SEMANAS TABLE */
+.semanas-table{width:100%;border-collapse:collapse}
+.semanas-table th{text-align:left;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;padding:0 12px 10px}
+.semanas-table td{padding:12px;border-top:1px solid var(--border);font-size:13px;vertical-align:middle}
+.semanas-table tr:hover td{background:rgba(255,255,255,0.02)}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:50px;font-size:11px;font-weight:700}
+.badge-green{background:rgba(34,197,94,0.12);color:var(--green2)}
+.badge-red{background:rgba(204,0,0,0.12);color:#ff6666}
+.badge-yellow{background:rgba(234,179,8,0.12);color:var(--yellow)}
+.badge-blue{background:rgba(59,130,246,0.12);color:var(--blue)}
+.badge-muted{background:#1e1e1e;color:#666}
+
+/* ACTION BTNS */
+.action-btns{display:flex;gap:6px}
+.abt{padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:all 0.2s}
+.abt-green{background:rgba(34,197,94,0.12);color:var(--green2)}.abt-green:hover{background:var(--green);color:#fff}
+.abt-blue{background:rgba(59,130,246,0.12);color:var(--blue)}.abt-blue:hover{background:var(--blue);color:#fff}
+.abt-red{background:rgba(204,0,0,0.1);color:#ff6666}.abt-red:hover{background:var(--red);color:#fff}
+.abt-muted{background:#1e1e1e;color:#666}.abt-muted:hover{background:#2a2a2a;color:#fff}
+
+/* GASTOS FORM */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.3px}
+.fg input,.fg select,.fg textarea{background:#111;border:1px solid var(--border);border-radius:8px;color:var(--white);padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border-color 0.2s}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--red)}
+.fg input::placeholder{color:#444}
+.fg select option{background:#1a1a1a}
+.fg-full{grid-column:1/-1}
+
+/* GASTO ITEM */
+.gasto-item{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:10px;background:#111;border:1px solid var(--border);margin-bottom:8px}
+.gasto-left{display:flex;align-items:center;gap:12px}
+.gasto-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.gasto-nome{font-size:13px;font-weight:600}
+.gasto-data{font-size:11px;color:var(--muted)}
+.gasto-val{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--red)}
+
+/* KM */
+.km-bar{background:#111;border-radius:50px;height:8px;margin:8px 0;overflow:hidden}
+.km-fill{height:100%;border-radius:50px;transition:width 0.5s}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#161616;border:1px solid #2a2a2a;border-radius:18px;padding:28px;width:100%;max-width:440px;margin:16px;border-top:3px solid var(--red)}
+.modal h3{font-family:'Syne',sans-serif;font-size:18px;margin-bottom:6px}
+.modal p{font-size:13px;color:var(--muted);margin-bottom:20px}
+.modal-btns{display:flex;gap:10px;margin-top:20px}
+
+/* CHARTS */
+.chart-wrap{position:relative;height:200px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:#1e1e1e;border:1px solid var(--border);border-left:3px solid var(--green2);padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;transform:translateY(80px);opacity:0;transition:all 0.3s;max-width:300px}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* VISTORIA */
+.vistoria-item{display:flex;align-items:center;justify-content:space-between;padding:14px;border-radius:10px;background:#111;border:1px solid var(--border);margin-bottom:8px}
+.vi-left{display:flex;align-items:center;gap:12px}
+.vi-num{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;flex-shrink:0}
+
+/* DIAS countdown */
+.countdown-box{background:rgba(204,0,0,0.08);border:1px solid rgba(204,0,0,0.2);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.countdown-num{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;color:var(--red);line-height:1}
+
+@media(max-width:768px){.app{grid-template-columns:1fr}.sidebar{display:none}.main{padding:16px}}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="logo-txt">ALS LOCADORA</div>
+    <div class="logo-sub">Painel de Gestão</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Principal</div>
+    <button class="nav-item active" onclick="showPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-item" onclick="showPage('pagamentos')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      Pagamentos
+    </button>
+    <button class="nav-item" onclick="showPage('vistorias')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+      Vistorias
+    </button>
+    <button class="nav-item" onclick="showPage('km')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Quilometragem
+    </button>
+    <button class="nav-item" onclick="showPage('gastos')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Gastos do Veículo
+    </button>
+    <div class="nav-section">Relatório</div>
+    <button class="nav-item" onclick="showPage('relatorio')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Relatório Mensal
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="motorista-card">
+      <div style="font-size:10px;color:#555;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Motorista Ativa</div>
+      <div class="motorista-nome"><span class="status-dot"></span>Thami Cervantes</div>
+      <div class="motorista-info">EWJ5F47 · desde 18/04/2026</div>
+      <div class="motorista-info" style="color:var(--red);margin-top:4px">Contrato até 18/07/2026</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dashboard 🚗</div>
+        <div class="page-sub">Visão geral da locação — Thami Gomes Lança Cervantes</div>
+      </div>
+      <button class="btn btn-red" onclick="showPage('pagamentos')">+ Registrar Pagamento</button>
+    </div>
+
+    <!-- COUNTDOWN -->
+    <div class="countdown-box">
+      <div>
+        <div class="countdown-num" id="dias-contrato">59</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">dias restantes</div>
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:600">Período mínimo do contrato</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Término em <strong style="color:var(--red)">18/07/2026</strong> — sem devolução antecipada</div>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon ci-green">💰</div>
+        <div class="card-label">Total Recebido</div>
+        <div class="card-val green" id="dash-total">R$ 0</div>
+        <div class="card-sub" id="dash-semanas">0 semanas pagas</div>
+      </div>
+      <div class="card">
+        <div class="card-icon ci-red">⏳</div>
+        <div class="card-label">Próximo Pagamento</div>
+        <div class="card-val red" id="dash-prox-val">R$ 900</div>
+        <div class="card-sub" id="dash-prox-data">Sábado — verificar</div>
+      </div>
+      <div class="card">
+        <div class="card-icon ci-blue">🛣️</div>
+        <div class="card-label">KM Rodado (mês)</div>
+        <div class="card-val blue" id="dash-km">0 km</div>
+        <div class="card-sub" id="dash-km-sub">de 5.500 km</div>
+      </div>
+      <div class="card">
+        <div class="card-icon ci-yellow">🔧</div>
+        <div class="card-label">Gastos Veículo</div>
+        <div class="card-val yellow" id="dash-gastos">R$ 0</div>
+        <div class="card-sub">total acumulado</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+      <div class="section">
+        <div class="section-head"><h3>📊 Receita Mensal</h3></div>
+        <div class="section-body"><div class="chart-wrap"><canvas id="chart-receita"></canvas></div></div>
+      </div>
+      <div class="section">
+        <div class="section-head"><h3>🔧 Gastos por Categoria</h3></div>
+        <div class="section-body"><div class="chart-wrap"><canvas id="chart-gastos"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h3>📅 Últimos Pagamentos</h3></div>
+      <div class="section-body" id="dash-ultimos">
+        <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhum pagamento registrado ainda</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGAMENTOS -->
+  <div class="page" id="page-pagamentos">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Pagamentos 💳</div>
+        <div class="page-sub">Controle semanal — R$ 900 todo sábado (R$ 810 se antecipar na sexta)</div>
+      </div>
+      <button class="btn btn-red" onclick="abrirModalPagamento()">+ Registrar</button>
+    </div>
+
+    <div class="cards" style="grid-template-columns:repeat(3,1fr)">
+      <div class="card">
+        <div class="card-label">Total Recebido</div>
+        <div class="card-val green" id="pag-total">R$ 0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Semanas Pagas</div>
+        <div class="card-val blue" id="pag-count">0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Descontos Concedidos</div>
+        <div class="card-val yellow" id="pag-descontos">R$ 0,00</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h3>Histórico de Pagamentos</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="abrirModalComprovante()">🖨️ Emitir Comprovante</button>
+          <button class="btn btn-ghost" onclick="gerarSemanas()">🔄 Gerar semanas</button>
+        </div>
+      </div>
+      <div class="section-body" style="padding:0">
+        <table class="semanas-table">
+          <thead><tr>
+            <th>Semana</th><th>Período</th><th>Valor</th><th>Status</th><th>Ação</th>
+          </tr></thead>
+          <tbody id="semanas-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTORIAS -->
+  <div class="page" id="page-vistorias">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Vistorias 📸</div>
+        <div class="page-sub">Controle quinzenal — vídeo 360° + foto hodômetro</div>
+      </div>
+      <button class="btn btn-red" onclick="abrirModalVistoria()">+ Registrar</button>
+    </div>
+
+    <div class="cards" style="grid-template-columns:repeat(3,1fr)">
+      <div class="card">
+        <div class="card-label">Vistorias Realizadas</div>
+        <div class="card-val green" id="vis-count">0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Próxima Vistoria</div>
+        <div class="card-val red" id="vis-prox">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Dias para Próxima</div>
+        <div class="card-val blue" id="vis-dias">—</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h3>Histórico de Vistorias</h3><button class="btn btn-ghost" onclick="abrirModalResumokm()">📊 Resumo Mensal PDF</button></div>
+      <div class="section-body" id="vis-lista">
+        <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhuma vistoria registrada</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KM -->
+  <div class="page" id="page-km">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Quilometragem 🛣️</div>
+        <div class="page-sub">Franquia: 5.500 km/mês — Excedente: R$ 1,80/km</div>
+      </div>
+      <button class="btn btn-red" onclick="abrirModalKm()">+ Atualizar KM</button>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">KM Atual</div>
+        <div class="card-val white" id="km-atual">0</div>
+        <div class="card-sub">hodômetro</div>
+      </div>
+      <div class="card">
+        <div class="card-label">KM Rodado no Mês</div>
+        <div class="card-val blue" id="km-mes">0</div>
+        <div class="card-sub" id="km-mes-sub">de 5.500 km</div>
+      </div>
+      <div class="card">
+        <div class="card-label">KM Excedente</div>
+        <div class="card-val red" id="km-excedente">0</div>
+        <div class="card-sub" id="km-excedente-val">R$ 0,00 a cobrar</div>
+      </div>
+      <div class="card">
+        <div class="card-label">KM na Retirada</div>
+        <div class="card-val yellow" id="km-retirada-val">—</div>
+        <div class="card-sub">18/04/2026</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h3>Barra de Consumo Mensal</h3></div>
+      <div class="section-body">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px">
+          <span id="km-bar-label">0 km rodados</span>
+          <span>5.500 km franquia</span>
+        </div>
+        <div class="km-bar">
+          <div class="km-fill" id="km-bar-fill" style="width:0%;background:var(--green2)"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px" id="km-bar-info">0 km restantes na franquia</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h3>Histórico de Leituras</h3></div>
+      <div class="section-body" id="km-historico">
+        <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhuma leitura registrada</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GASTOS -->
+  <div class="page" id="page-gastos">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Gastos do Veículo 🔧</div>
+        <div class="page-sub">Manutenções, reparos e despesas do Virtus</div>
+      </div>
+      <button class="btn btn-red" onclick="abrirModalGasto()">+ Adicionar Gasto</button>
+    </div>
+
+    <div class="cards" style="grid-template-columns:repeat(4,1fr)">
+      <div class="card">
+        <div class="card-label">Total Gastos</div>
+        <div class="card-val red" id="gas-total">R$ 0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Manutenção</div>
+        <div class="card-val yellow" id="gas-manut">R$ 0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Combustível</div>
+        <div class="card-val blue" id="gas-comb">R$ 0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Outros</div>
+        <div class="card-val" id="gas-outros">R$ 0,00</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h3>Lançamentos</h3></div>
+      <div class="section-body" id="gastos-lista">
+        <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhum gasto registrado</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RELATÓRIO -->
+  <div class="page" id="page-relatorio">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Relatório 📊</div>
+        <div class="page-sub">Resumo financeiro da locação</div>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Total Recebido</div>
+        <div class="card-val green" id="rel-recebido">R$ 0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Total Gasto (veículo)</div>
+        <div class="card-val red" id="rel-gasto">R$ 0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Lucro Líquido</div>
+        <div class="card-val green" id="rel-lucro">R$ 0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Descontos Dados</div>
+        <div class="card-val yellow" id="rel-desconto">R$ 0,00</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h3>📈 Receita vs Gastos</h3></div>
+      <div class="section-body"><div class="chart-wrap" style="height:250px"><canvas id="chart-relatorio"></canvas></div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h3>💡 Resumo do Contrato</h3></div>
+      <div class="section-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" id="rel-info">
+          <div style="background:#111;border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Motorista</div>
+            <div style="font-size:14px;font-weight:600">Thami Gomes Lança Cervantes</div>
+          </div>
+          <div style="background:#111;border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Veículo</div>
+            <div style="font-size:14px;font-weight:600">VW Virtus 2019 · EWJ5F47</div>
+          </div>
+          <div style="background:#111;border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Início do Contrato</div>
+            <div style="font-size:14px;font-weight:600">18/04/2026</div>
+          </div>
+          <div style="background:#111;border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Término Mínimo</div>
+            <div style="font-size:14px;font-weight:600;color:var(--red)">18/07/2026</div>
+          </div>
+          <div style="background:#111;border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Aluguel Semanal</div>
+            <div style="font-size:14px;font-weight:600">R$ 900,00 (R$ 810 antecipado)</div>
+          </div>
+          <div style="background:#111;border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Caução</div>
+            <div style="font-size:14px;font-weight:600;color:var(--green2)">R$ 1.600,00 ✓</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- MODAIS -->
+<div class="modal-overlay" id="modal-pagamento">
+  <div class="modal">
+    <h3>💳 Registrar Pagamento</h3>
+    <p>Semana de referência e valor recebido</p>
+    <div class="form-grid">
+      <div class="fg"><label>Semana #</label><input type="number" id="pag-semana" placeholder="1" min="1"></div>
+      <div class="fg"><label>Data do Pagamento</label><input type="date" id="pag-data"></div>
+      <div class="fg fg-full"><label>Valor Recebido</label>
+        <div style="display:flex;gap:8px">
+          <input type="number" id="pag-valor" placeholder="900.00" step="0.01" style="flex:1">
+          <button class="btn btn-ghost" onclick="setValorNormal()" style="font-size:12px;white-space:nowrap">R$ 900 Sáb</button>
+          <button class="btn btn-green" onclick="setValorDesconto()" style="font-size:12px;white-space:nowrap">R$ 810 Sex ⚡</button>
+        </div>
+      </div>
+      <div class="fg"><label>Período Início</label><input type="date" id="pag-ini"></div>
+      <div class="fg"><label>Período Fim</label><input type="date" id="pag-fim"></div>
+      <div class="fg fg-full"><label>Observação</label><input type="text" id="pag-obs" placeholder="Ex: Pago com antecedência"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-red" onclick="salvarPagamento()" style="flex:1">Salvar</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-pagamento')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-vistoria">
+  <div class="modal">
+    <h3>📸 Registrar Vistoria</h3>
+    <p>Vistoria quinzenal — vídeo 360° + foto hodômetro</p>
+    <div class="form-grid">
+      <div class="fg"><label>Data da Vistoria</label><input type="date" id="vis-data"></div>
+      <div class="fg"><label>KM no Hodômetro</label><input type="number" id="vis-km" placeholder="Ex: 45000"></div>
+      <div class="fg fg-full"><label>Status</label>
+        <select id="vis-status">
+          <option value="ok">✅ Realizada com sucesso</option>
+          <option value="pendente">⏳ Pendente — aguardando envio</option>
+          <option value="atrasada">⚠️ Atrasada</option>
+          <option value="presencial">🔍 Inspeção presencial</option>
+        </select>
+      </div>
+      <div class="fg fg-full"><label>Observações</label><input type="text" id="vis-obs" placeholder="Estado do carro, observações..."></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-red" onclick="salvarVistoria()" style="flex:1">Salvar</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-vistoria')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-km">
+  <div class="modal">
+    <h3>🛣️ Atualizar Quilometragem</h3>
+    <p>Registre a leitura atual do hodômetro</p>
+    <div class="form-grid">
+      <div class="fg"><label>Data da Leitura</label><input type="date" id="km-data"></div>
+      <div class="fg"><label>KM Hodômetro</label><input type="number" id="km-valor" placeholder="Ex: 47500"></div>
+      <div class="fg fg-full"><label>Observação</label><input type="text" id="km-obs" placeholder="Ex: Vistoria quinzenal"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-red" onclick="salvarKm()" style="flex:1">Salvar</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-km')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-gasto">
+  <div class="modal">
+    <h3>🔧 Registrar Gasto</h3>
+    <p>Despesa do veículo</p>
+    <div class="form-grid">
+      <div class="fg"><label>Data</label><input type="date" id="gas-data"></div>
+      <div class="fg"><label>Categoria</label>
+        <select id="gas-cat">
+          <option value="manutencao">🔧 Manutenção</option>
+          <option value="pneu">🛞 Pneu</option>
+          <option value="lampada">💡 Lâmpada</option>
+          <option value="lavagem">🚿 Lavagem</option>
+          <option value="combustivel">⛽ Combustível</option>
+          <option value="multa">🚦 Multa</option>
+          <option value="seguro">🛡️ Seguro</option>
+          <option value="outro">📦 Outro</option>
+        </select>
+      </div>
+      <div class="fg fg-full"><label>Descrição</label><input type="text" id="gas-desc" placeholder="Ex: Troca de palheta"></div>
+      <div class="fg"><label>Valor (R$)</label><input type="number" id="gas-val" placeholder="0,00" step="0.01"></div>
+      <div class="fg"><label>Pago por</label>
+        <select id="gas-pago">
+          <option value="als">ALS Locadora</option>
+          <option value="motorista">Motorista</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-red" onclick="salvarGasto()" style="flex:1">Salvar</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-gasto')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── SUPABASE ───
+var SURL = 'https://eaxsnhwozmznphzqumbj.supabase.co';
+var SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVheHNuaHdvem16bnBoenF1bWJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MTU5NzEsImV4cCI6MjA4OTI5MTk3MX0.IxLUPyoLGKuI5_PtFXe28Djy7D4UwzXMgoF6relTROk';
+var sb = supabase.createClient(SURL, SKEY);
+
+// ─── STATE ───
+var state = { pagamentos:[], vistorias:[], kms:[], gastos:[], kmRetirada:0 };
+var chartReceita, chartGastos, chartRelatorio;
+var _saving = false;
+
+// Salva no Supabase (upsert completo)
+async function save() {
+  // Fallback local também
+  localStorage.setItem('als-gestor', JSON.stringify(state));
+}
+
+// ─── CARREGAR DADOS DO SUPABASE ───
+async function carregarDados() {
+  showLoading(true);
+  try {
+    var [rp, rv, rk, rg] = await Promise.all([
+      sb.from('als_pagamentos').select('*').order('semana'),
+      sb.from('als_vistorias').select('*').order('data', {ascending:false}),
+      sb.from('als_kms').select('*').order('data'),
+      sb.from('als_gastos').select('*').order('data', {ascending:false})
+    ]);
+    if (rp.data) state.pagamentos = rp.data.map(function(r){return{id:r.semana,ini:r.ini,fim:r.fim,sabado:r.sabado,valor:r.valor,pago:r.pago,antecipado:r.antecipado,dataPag:r.data_pag,obs:r.obs,_dbid:r.id};});
+    if (rv.data) state.vistorias = rv.data.map(function(r){return{id:r.id,data:r.data,km:r.km,status:r.status,obs:r.obs};});
+    if (rk.data) state.kms = rk.data.map(function(r){return{id:r.id,data:r.data,valor:r.valor,obs:r.obs};});
+    if (rg.data) state.gastos = rg.data.map(function(r){return{id:r.id,data:r.data,cat:r.cat,desc:r.descricao,val:parseFloat(r.val),pago:r.pago_por};});
+    if (state.kms.length) atualizarKmState();
+  } catch(e) {
+    console.error('Erro ao carregar:', e);
+    // fallback localStorage
+    var local = JSON.parse(localStorage.getItem('als-gestor')||'{}');
+    if (local.pagamentos) state = local;
+  }
+  showLoading(false);
+  renderAll();
+}
+
+function showLoading(show) {
+  var el = document.getElementById('loading-overlay');
+  if (el) el.style.display = show ? 'flex' : 'none';
+}
+
+// Salva pagamento no Supabase
+async function savePagamento(p) {
+  var data = {semana:p.id,ini:p.ini,fim:p.fim,sabado:p.sabado,valor:p.valor,pago:p.pago,antecipado:p.antecipado,data_pag:p.dataPag,obs:p.obs};
+  if (p._dbid) {
+    await sb.from('als_pagamentos').update(data).eq('id',p._dbid);
+  } else {
+    var r = await sb.from('als_pagamentos').insert(data).select();
+    if (r.data && r.data[0]) p._dbid = r.data[0].id;
+  }
+  localStorage.setItem('als-gestor', JSON.stringify(state));
+}
+
+async function saveVistoria(v) {
+  var r = await sb.from('als_vistorias').insert({data:v.data,km:v.km,status:v.status,obs:v.obs}).select();
+  if (r.data && r.data[0]) v.id = r.data[0].id;
+  localStorage.setItem('als-gestor', JSON.stringify(state));
+}
+
+async function saveKm(k) {
+  var r = await sb.from('als_kms').insert({data:k.data,valor:k.valor,obs:k.obs}).select();
+  if (r.data && r.data[0]) k.id = r.data[0].id;
+  localStorage.setItem('als-gestor', JSON.stringify(state));
+}
+
+async function saveGasto(g) {
+  var r = await sb.from('als_gastos').insert({data:g.data,cat:g.cat,descricao:g.desc,val:g.val,pago_por:g.pago}).select();
+  if (r.data && r.data[0]) g.id = r.data[0].id;
+  localStorage.setItem('als-gestor', JSON.stringify(state));
+}
+
+async function deleteGastoDb(id) {
+  await sb.from('als_gastos').delete().eq('id',id);
+}
+
+async function deleteKmDb(id) {
+  await sb.from('als_kms').delete().eq('id',id);
+}
+function fmt(v) { return 'R$ '+parseFloat(v||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
+function fmtDate(d) { if(!d) return '—'; var p=d.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function today() { return new Date().toISOString().split('T')[0]; }
+
+function toast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderLeftColor = type==='error'?'var(--red)':type==='warn'?'var(--yellow)':'var(--green2)';
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3000);
+}
+
+// ─── NAV ───
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  document.getElementById('page-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  renderAll();
+}
+
+// ─── MODAIS ───
+function abrirModalPagamento() {
+  document.getElementById('pag-data').value = today();
+  var prox = proximaSemana();
+  if (prox) { document.getElementById('pag-ini').value = prox.ini; document.getElementById('pag-fim').value = prox.fim; document.getElementById('pag-semana').value = prox.num; }
+  document.getElementById('pag-valor').value = '900';
+  document.getElementById('pag-obs').value = '';
+  document.getElementById('modal-pagamento').classList.add('open');
+}
+function abrirModalVistoria() {
+  document.getElementById('vis-data').value = today();
+  document.getElementById('vis-km').value = '';
+  document.getElementById('vis-obs').value = '';
+  document.getElementById('modal-vistoria').classList.add('open');
+}
+function abrirModalKm() {
+  document.getElementById('km-data').value = today();
+  document.getElementById('km-valor').value = '';
+  document.getElementById('km-obs').value = '';
+  document.getElementById('modal-km').classList.add('open');
+}
+function abrirModalGasto() {
+  document.getElementById('gas-data').value = today();
+  document.getElementById('gas-desc').value = '';
+  document.getElementById('gas-val').value = '';
+  document.getElementById('modal-gasto').classList.add('open');
+}
+function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function setValorNormal() { document.getElementById('pag-valor').value = '900'; document.getElementById('pag-obs').value = 'Pagamento no sábado'; }
+function setValorDesconto() { document.getElementById('pag-valor').value = '810'; document.getElementById('pag-obs').value = '⚡ Antecipou na sexta — desconto 10%'; }
+
+// ─── SEMANAS ───
+function gerarSemanas() {
+  // Inicio: 18/04/2026 (sabado que pegou o carro)
+  // 1o pagamento: 25/04/2026 (sabado seguinte)
+  var inicio = new Date('2026-04-18');
+  var fim = new Date('2026-11-01');
+  var semana = 1;
+  var cur = new Date(inicio);
+  state.pagamentos = [];
+  while (cur < fim) {
+    var ini = new Date(cur);
+    var f = new Date(cur); f.setDate(f.getDate()+6);
+    var sabado = new Date(f); // pagamento no sábado (dia 7)
+    state.pagamentos.push({
+      id: semana,
+      ini: ini.toISOString().split('T')[0],
+      fim: f.toISOString().split('T')[0],
+      sabado: sabado.toISOString().split('T')[0],
+      valor: null, pago: false, antecipado: false, obs: ''
+    });
+    cur.setDate(cur.getDate()+7);
+    semana++;
+  }
+  save(); renderPagamentos(); renderDashboard();
+  toast('Semanas geradas com sucesso!');
+}
+
+function proximaSemana() {
+  var num = state.pagamentos.filter(function(p){ return !p.pago; });
+  if (!num.length) return null;
+  var p = num[0];
+  return { ini: p.ini, fim: p.fim, num: p.id };
+}
+
+async function marcarPago(id, antecipado) {
+  var p = state.pagamentos.find(function(x){ return x.id===id; });
+  if (!p) return;
+  p.pago = true;
+  p.antecipado = antecipado;
+  p.valor = antecipado ? 810 : 900;
+  p.dataPag = today();
+  p.obs = antecipado ? '⚡ Antecipou na sexta — desconto 10%' : 'Pago no sábado';
+  renderPagamentos(); renderDashboard();
+  await savePagamento(p);
+  toast(antecipado ? '⚡ Pagamento antecipado! Desconto de R$ 90 aplicado.' : '✅ Pagamento registrado!');
+}
+
+async function desmarcarPago(id) {
+  var p = state.pagamentos.find(function(x){ return x.id===id; });
+  if (!p) return;
+  p.pago = false; p.antecipado = false; p.valor = null; p.dataPag = null; p.obs = '';
+  renderPagamentos(); renderDashboard();
+  await savePagamento(p);
+  toast('Pagamento desmarcado.', 'warn');
+}
+
+async function salvarPagamento() {
+  var semana = parseInt(document.getElementById('pag-semana').value);
+  var valor = parseFloat(document.getElementById('pag-valor').value);
+  var data = document.getElementById('pag-data').value;
+  var ini = document.getElementById('pag-ini').value;
+  var fim = document.getElementById('pag-fim').value;
+  var obs = document.getElementById('pag-obs').value;
+  if (!valor || !data) { toast('Preencha valor e data!','error'); return; }
+  var antecipado = valor < 900;
+  var p = state.pagamentos.find(function(x){ return x.id===semana; });
+  if (!p) {
+    p = { id: semana, ini: ini, fim: fim, sabado: data };
+    state.pagamentos.push(p);
+  }
+  p.pago = true; p.antecipado = antecipado; p.valor = valor;
+  p.dataPag = data; p.obs = obs;
+  fecharModal('modal-pagamento'); renderPagamentos(); renderDashboard();
+  await savePagamento(p);
+  toast(antecipado ? '⚡ Pagamento antecipado salvo!' : '✅ Pagamento salvo!');
+}
+
+async function salvarVistoria() {
+  var data = document.getElementById('vis-data').value;
+  var km = document.getElementById('vis-km').value;
+  var status = document.getElementById('vis-status').value;
+  var obs = document.getElementById('vis-obs').value;
+  if (!data) { toast('Informe a data!','error'); return; }
+  var v = { data:data, km: parseInt(km)||0, status:status, obs:obs, id: Date.now() };
+  state.vistorias.unshift(v);
+  if (km && parseInt(km) > 0) {
+    var k = { data:data, valor: parseInt(km), obs: 'Vistoria quinzenal', id: Date.now() };
+    state.kms.push(k);
+    atualizarKmState();
+    await saveKm(k);
+  }
+  fecharModal('modal-vistoria'); renderVistorias(); renderKm();
+  await saveVistoria(v);
+  toast('✅ Vistoria registrada!');
+}
+
+async function salvarKm() {
+  var data = document.getElementById('km-data').value;
+  var valor = parseInt(document.getElementById('km-valor').value);
+  var obs = document.getElementById('km-obs').value;
+  if (!data || !valor) { toast('Preencha data e KM!','error'); return; }
+  var k = { data:data, valor:valor, obs:obs, id: Date.now() };
+  state.kms.push(k);
+  atualizarKmState();
+  fecharModal('modal-km'); renderKm(); renderDashboard();
+  await saveKm(k);
+  toast('✅ KM registrado!');
+}
+
+function atualizarKmState() {
+  if (!state.kms.length) return;
+  var sorted = state.kms.slice().sort(function(a,b){ return new Date(b.data)-new Date(a.data); });
+  state.kmAtual = sorted[0].valor;
+  if (!state.kmRetirada || state.kmRetirada === 0) state.kmRetirada = sorted[sorted.length-1].valor;
+}
+
+async function salvarGasto() {
+  var data = document.getElementById('gas-data').value;
+  var cat = document.getElementById('gas-cat').value;
+  var desc = document.getElementById('gas-desc').value;
+  var val = parseFloat(document.getElementById('gas-val').value);
+  var pago = document.getElementById('gas-pago').value;
+  if (!data || !val || !desc) { toast('Preencha todos os campos!','error'); return; }
+  var g = { data:data, cat:cat, desc:desc, val:val, pago:pago, id: Date.now() };
+  state.gastos.unshift(g);
+  fecharModal('modal-gasto'); renderGastos(); renderDashboard();
+  await saveGasto(g);
+  toast('✅ Gasto registrado!');
+}
+
+async function deletarGasto(id) {
+  await deleteGastoDb(id);
+  state.gastos = state.gastos.filter(function(g){ return g.id!==id; });
+  renderGastos(); renderDashboard();
+  toast('Gasto removido.','warn');
+}
+
+// ─── RENDERS ───
+function renderAll() {
+  renderDashboard(); renderPagamentos(); renderVistorias(); renderKm(); renderGastos(); renderRelatorio();
+}
+
+function totalPago() { return state.pagamentos.filter(function(p){return p.pago;}).reduce(function(s,p){return s+(p.valor||0);},0); }
+function totalDescontos() { return state.pagamentos.filter(function(p){return p.antecipado;}).reduce(function(s,p){return s+(900-(p.valor||900));},0); }
+function totalGastos() { return state.gastos.filter(function(g){return g.pago==='als';}).reduce(function(s,g){return s+g.val;},0); }
+
+function renderDashboard() {
+  var tp = totalPago(), tg = totalGastos();
+  var pagas = state.pagamentos.filter(function(p){return p.pago;}).length;
+  document.getElementById('dash-total').textContent = fmt(tp);
+  document.getElementById('dash-semanas').textContent = pagas + ' semana(s) paga(s)';
+  document.getElementById('dash-gastos').textContent = fmt(tg);
+
+  var kmAtual = state.kmAtual || 0;
+  var kmRet = state.kmRetirada || 0;
+  var mesKm = kmAtual - kmRet;
+  document.getElementById('dash-km').textContent = mesKm + ' km';
+
+  // Próximo pagamento
+  var prox = state.pagamentos.find(function(p){return !p.pago;});
+  if (prox) {
+    document.getElementById('dash-prox-val').textContent = 'R$ 900 / R$ 810';
+    document.getElementById('dash-prox-data').textContent = 'Semana #'+prox.id+' · '+fmtDate(prox.sabado);
+  }
+
+  // Últimos pagamentos
+  var ul = document.getElementById('dash-ultimos');
+  var ultimos = state.pagamentos.filter(function(p){return p.pago;}).slice(-3).reverse();
+  if (!ultimos.length) { ul.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhum pagamento ainda</div>'; return; }
+  ul.innerHTML = ultimos.map(function(p){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#111;border-radius:8px;margin-bottom:6px">' +
+      '<div><div style="font-size:13px;font-weight:600">Semana #'+p.id+'</div><div style="font-size:11px;color:var(--muted)">'+fmtDate(p.ini)+' a '+fmtDate(p.fim)+'</div></div>' +
+      '<div style="text-align:right"><div style="font-family:Syne,sans-serif;font-size:15px;font-weight:700;color:'+(p.antecipado?'var(--green2)':'var(--white)')+'">'+fmt(p.valor)+'</div>' +
+      (p.antecipado?'<div style="font-size:10px;color:var(--green2)">⚡ antecipado</div>':'') + '</div></div>';
+  }).join('');
+
+  // Countdown
+  var hoje = new Date();
+  var fim = new Date('2026-07-18');
+  var dias = Math.ceil((fim-hoje)/(1000*60*60*24));
+  document.getElementById('dias-contrato').textContent = Math.max(0,dias);
+
+  renderCharts();
+}
+
+function renderPagamentos() {
+  var tbody = document.getElementById('semanas-body');
+  if (!state.pagamentos.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Clique em "Gerar semanas" para criar o calendário</td></tr>';
+    return;
+  }
+  tbody.innerHTML = state.pagamentos.slice(0,20).map(function(p){
+    var statusBadge = p.pago
+      ? (p.antecipado ? '<span class="badge badge-green">⚡ Antecipado</span>' : '<span class="badge badge-blue">✅ Pago</span>')
+      : '<span class="badge badge-muted">⏳ Aguardando</span>';
+    var acoes = p.pago
+      ? '<button class="abt abt-muted" onclick="desmarcarPago('+p.id+')">↩ Desfazer</button>'
+      : '<button class="abt abt-green" onclick="marcarPago('+p.id+',false)">✅ Sáb R$900</button> <button class="abt abt-blue" onclick="marcarPago('+p.id+',true)">⚡ Sex R$810</button>';
+    return '<tr>' +
+      '<td><strong>#'+p.id+'</strong></td>' +
+      '<td style="color:var(--muted);font-size:12px">'+fmtDate(p.ini)+' a '+fmtDate(p.fim)+'</td>' +
+      '<td>'+(p.pago ? '<strong style="color:'+(p.antecipado?'var(--green2)':'var(--white)')+'">'+fmt(p.valor)+'</strong>' : '<span style="color:var(--muted)">R$ 900 / R$ 810</span>')+'</td>' +
+      '<td>'+statusBadge+'</td>' +
+      '<td><div class="action-btns">'+acoes+'</div></td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('pag-total').textContent = fmt(totalPago());
+  document.getElementById('pag-count').textContent = state.pagamentos.filter(function(p){return p.pago;}).length;
+  document.getElementById('pag-descontos').textContent = fmt(totalDescontos());
+}
+
+function renderVistorias() {
+  var lista = document.getElementById('vis-lista');
+  var count = state.vistorias.length;
+  document.getElementById('vis-count').textContent = count;
+
+  if (!count) {
+    lista.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhuma vistoria registrada</div>';
+    document.getElementById('vis-prox').textContent = '—';
+    document.getElementById('vis-dias').textContent = '—';
+    return;
+  }
+
+  var sorted = state.vistorias.slice().sort(function(a,b){return new Date(b.data)-new Date(a.data);});
+  var ultima = new Date(sorted[0].data);
+  var prox = new Date(ultima); prox.setDate(prox.getDate()+15);
+  var diasProx = Math.ceil((prox-new Date())/(1000*60*60*24));
+  document.getElementById('vis-prox').textContent = fmtDate(prox.toISOString().split('T')[0]);
+  document.getElementById('vis-dias').textContent = Math.max(0,diasProx)+' dias';
+
+  var statusMap = {ok:'✅ Realizada',pendente:'⏳ Pendente',atrasada:'⚠️ Atrasada',presencial:'🔍 Presencial'};
+  var badgeMap = {ok:'badge-green',pendente:'badge-yellow',atrasada:'badge-red',presencial:'badge-blue'};
+
+  lista.innerHTML = sorted.map(function(v,i){
+    return '<div class="vistoria-item" style="margin-bottom:8px">' +
+      '<div class="vi-left"><div class="vi-num" style="background:rgba(204,0,0,0.12);color:var(--red)">'+(count-i)+'</div>' +
+      '<div><div style="font-size:13px;font-weight:600">'+fmtDate(v.data)+'</div>' +
+      (v.km?'<div style="font-size:11px;color:var(--muted)">'+v.km.toLocaleString()+' km</div>':'') +
+      (v.obs?'<div style="font-size:11px;color:var(--muted)">'+v.obs+'</div>':'') +
+      '</div></div>' +
+      '<span class="badge '+badgeMap[v.status]+'">'+statusMap[v.status]+'</span></div>';
+  }).join('');
+}
+
+function renderKm() {
+  if (!state.kms.length) return;
+  var sorted = state.kms.slice().sort(function(a,b){return new Date(b.data)-new Date(a.data);});
+  var atual = sorted[0].valor;
+  var ret = state.kmRetirada || sorted[sorted.length-1].valor;
+  var mesKm = atual - ret;
+  var excedente = Math.max(0, mesKm - 5500);
+  var pct = Math.min(100, (mesKm/5500)*100);
+  var cor = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--yellow)' : 'var(--green2)';
+
+  document.getElementById('km-atual').textContent = atual.toLocaleString();
+  document.getElementById('km-mes').textContent = mesKm.toLocaleString()+' km';
+  document.getElementById('km-retirada-val').textContent = ret.toLocaleString();
+  document.getElementById('km-excedente').textContent = excedente.toLocaleString()+' km';
+  document.getElementById('km-excedente-val').textContent = excedente>0?fmt(excedente*1.8)+' a cobrar':'Dentro da franquia ✅';
+  document.getElementById('km-bar-fill').style.width = pct+'%';
+  document.getElementById('km-bar-fill').style.background = cor;
+  document.getElementById('km-bar-label').textContent = mesKm.toLocaleString()+' km rodados';
+  document.getElementById('km-bar-info').textContent = excedente>0 ? excedente+' km excedentes — cobrar '+fmt(excedente*1.8) : (5500-mesKm)+' km restantes na franquia';
+  document.getElementById('dash-km').textContent = mesKm+' km';
+
+  var hist = document.getElementById('km-historico');
+  hist.innerHTML = sorted.map(function(k){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#111;border-radius:8px;margin-bottom:6px">' +
+      '<div><div style="font-size:13px;font-weight:600">'+k.valor.toLocaleString()+' km</div><div style="font-size:11px;color:var(--muted)">'+fmtDate(k.data)+(k.obs?' · '+k.obs:'')+'</div></div>' +
+      '<button class="abt abt-red" onclick="deletarKm('+k.id+')">✕</button></div>';
+  }).join('');
+}
+
+async function deletarKm(id) {
+  await deleteKmDb(id);
+  state.kms = state.kms.filter(function(k){return k.id!==id;});
+  atualizarKmState();
+  renderKm(); renderDashboard();
+}
+
+function renderGastos() {
+  var lista = document.getElementById('gastos-lista');
+  if (!state.gastos.length) {
+    lista.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhum gasto registrado</div>';
+    return;
+  }
+  var catTotals = {};
+  state.gastos.forEach(function(g){ catTotals[g.cat] = (catTotals[g.cat]||0)+g.val; });
+  var tg = totalGastos();
+  var manut = (catTotals['manutencao']||0)+(catTotals['pneu']||0)+(catTotals['lampada']||0);
+  var comb = catTotals['combustivel']||0;
+  var outros = tg - manut - comb;
+
+  document.getElementById('gas-total').textContent = fmt(tg);
+  document.getElementById('gas-manut').textContent = fmt(manut);
+  document.getElementById('gas-comb').textContent = fmt(comb);
+  document.getElementById('gas-outros').textContent = fmt(Math.max(0,outros));
+
+  var iconMap = {manutencao:'🔧',pneu:'🛞',lampada:'💡',lavagem:'🚿',combustivel:'⛽',multa:'🚦',seguro:'🛡️',outro:'📦'};
+  var bgMap = {manutencao:'ci-yellow',pneu:'ci-red',lampada:'ci-yellow',lavagem:'ci-blue',combustivel:'ci-blue',multa:'ci-red',seguro:'ci-green',outro:'ci-blue'};
+  var sorted = state.gastos.slice().sort(function(a,b){return new Date(b.data)-new Date(a.data);});
+  lista.innerHTML = sorted.map(function(g){
+    return '<div class="gasto-item">' +
+      '<div class="gasto-left"><div class="gasto-icon '+bgMap[g.cat]+'">'+iconMap[g.cat]+'</div>' +
+      '<div><div class="gasto-nome">'+g.desc+'</div><div class="gasto-data">'+fmtDate(g.data)+' · '+g.cat+(g.pago==='motorista'?' <span style="color:var(--green2);font-size:10px">(motorista)</span>':'')+'</div></div></div>' +
+      '<div style="display:flex;align-items:center;gap:10px"><div class="gasto-val">'+fmt(g.val)+'</div>' +
+      '<button class="abt abt-red" onclick="deletarGasto('+g.id+')">✕</button></div></div>';
+  }).join('');
+}
+
+function renderRelatorio() {
+  var tp = totalPago(), tg = totalGastos(), td = totalDescontos();
+  document.getElementById('rel-recebido').textContent = fmt(tp);
+  document.getElementById('rel-gasto').textContent = fmt(tg);
+  document.getElementById('rel-lucro').textContent = fmt(tp-tg);
+  document.getElementById('rel-desconto').textContent = fmt(td);
+}
+
+// ─── CHARTS ───
+function renderCharts() {
+  // Receita por semana
+  var pagos = state.pagamentos.filter(function(p){return p.pago;}).slice(-6);
+  var labels = pagos.map(function(p){return 'Sem #'+p.id;});
+  var values = pagos.map(function(p){return p.valor||0;});
+  var colors = pagos.map(function(p){return p.antecipado?'#22c55e':'#CC0000';});
+
+  var ctx1 = document.getElementById('chart-receita');
+  if (ctx1) {
+    if (chartReceita) chartReceita.destroy();
+    chartReceita = new Chart(ctx1, {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, borderSkipped: false }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { grid: { color: '#1e1e1e' }, ticks: { color: '#666', font: { size: 10 } } },
+          y: { grid: { color: '#1e1e1e' }, ticks: { color: '#666', font: { size: 10 }, callback: function(v){ return 'R$'+v; } } } } }
+    });
+  }
+
+  // Gastos por categoria
+  var catTotals = {};
+  state.gastos.forEach(function(g){ catTotals[g.cat] = (catTotals[g.cat]||0)+g.val; });
+  var ctx2 = document.getElementById('chart-gastos');
+  if (ctx2 && Object.keys(catTotals).length) {
+    if (chartGastos) chartGastos.destroy();
+    chartGastos = new Chart(ctx2, {
+      type: 'doughnut',
+      data: { labels: Object.keys(catTotals), datasets: [{ data: Object.values(catTotals), backgroundColor: ['#CC0000','#eab308','#3b82f6','#22c55e','#f97316','#8b5cf6','#ec4899'], borderWidth: 0, hoverOffset: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#888', font: { size: 10 }, boxWidth: 10, padding: 8 } } } }
+    });
+  }
+}
+
+// ─── FECHAR MODAL AO CLICAR FORA ───
+document.querySelectorAll('.modal-overlay').forEach(function(m){
+  m.addEventListener('click', function(e){ if(e.target===m) m.classList.remove('open'); });
+});
+
+// ─── ESC ───
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') document.querySelectorAll('.modal-overlay').forEach(function(m){m.classList.remove('open');}); });
+
+// ─── INIT ───
+carregarDados();
+
+// ─── COMPROVANTE PDF ───
+function abrirModalComprovante() {
+  var sel = document.getElementById('comp-semana');
+  sel.innerHTML = '<option value="">Selecione a semana...</option>';
+  var pagas = state.pagamentos.filter(function(p){return p.pago;});
+  pagas.slice().reverse().forEach(function(p){
+    var opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = 'Semana #'+p.id+' ('+fmtDate(p.ini)+' a '+fmtDate(p.fim)+') — '+fmt(p.valor||900);
+    sel.appendChild(opt);
+  });
+  if (!pagas.length) {
+    var opt = document.createElement('option');
+    opt.value = 'manual'; opt.textContent = 'Manual'; sel.appendChild(opt);
+  }
+  document.getElementById('comp-data').value = today();
+  document.getElementById('comp-num').value = '00'+(pagas.length+1)+'/2026';
+  document.getElementById('comp-valor').value = '';
+  document.getElementById('comp-obs').value = '';
+  sel.onchange = function() {
+    var id = parseInt(sel.value);
+    var p = state.pagamentos.find(function(x){return x.id===id;});
+    if (p) {
+      document.getElementById('comp-valor').value = p.valor||900;
+      document.getElementById('comp-data').value = p.dataPag||today();
+      document.getElementById('comp-obs').value = p.obs||'';
+    }
+  };
+  document.getElementById('modal-comprovante').classList.add('open');
+}
+
+function emitirComprovantePDF() {
+  var semId = document.getElementById('comp-semana').value;
+  var valor = parseFloat(document.getElementById('comp-valor').value)||900;
+  var data = document.getElementById('comp-data').value;
+  var num = document.getElementById('comp-num').value||'001/2026';
+  var obs = document.getElementById('comp-obs').value;
+  var p = state.pagamentos.find(function(x){return x.id===parseInt(semId);});
+  var ini = p ? fmtDate(p.ini) : '___/___/2026';
+  var fim2 = p ? fmtDate(p.fim) : '___/___/2026';
+  var antecipado = valor < 900;
+  var valorExt = valor===900?'Novecentos reais':valor===810?'Oitocentos e dez reais':''+valor.toFixed(2).replace('.',',');
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo ALS</title>'
+    +'<style>body{font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:20px;background:#fff;color:#111}'
+    +'.cab{background:#0d0d0d;padding:18px 20px;border-top:5px solid #CC0000;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center}'
+    +'.cab h1{color:#CC0000;font-size:20px;margin:0;font-family:Arial Black,sans-serif}'
+    +'.cab p{color:#ff9999;font-size:10px;margin:3px 0 0}.cab-r{text-align:right;color:#ffcccc;font-size:11px}'
+    +'.verde{background:#166534;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px}'
+    +'.verde .ck{font-size:28px}.verde h2{font-size:14px;margin:0}.verde p{font-size:11px;color:#86efac;margin:2px 0 0}'
+    +'.body{padding:18px}'
+    +'.nr{display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:10px;margin-bottom:14px}'
+    +'.nr label{font-size:10px;color:#888;display:block}.nr strong{font-size:13px}'
+    +'.vbox{border:2px solid #CC0000;border-radius:8px;text-align:center;padding:14px;background:#fff5f5;margin-bottom:14px}'
+    +'.vbox .lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px}'
+    +'.vbox .num{font-size:34px;font-weight:900;color:#CC0000;font-family:Arial Black,sans-serif}'
+    +'.vbox .ext{font-size:11px;color:#888}'
+    +'.tbl{width:100%;border-collapse:collapse;margin-bottom:14px}'
+    +'.tbl td{padding:7px 10px;font-size:12px;border-bottom:1px solid #f0f0f0}'
+    +'.tbl td:first-child{background:#f8f8f8;font-weight:700;color:#666;width:110px}'
+    +'.decl{background:#f8f8f8;padding:12px;border-radius:6px;font-size:11px;line-height:1.7;color:#333;margin-bottom:14px}'
+    +'.sig{border-top:1px solid #222;padding-top:8px;text-align:center;font-size:11px;font-weight:700}'
+    +'.sig small{display:block;color:#666;font-weight:400}'
+    +'.footer{text-align:center;font-size:9px;color:#aaa;border-top:1px solid #eee;padding-top:8px;margin-top:12px}'
+    +'@media print{body{padding:0}}</style></head><body>'
+    +'<div class="cab"><div><h1>ALS LOCADORA</h1><p>CNPJ: 63.550.267/0001-72 \u2014 MEI \u2014 Po\u00e1 - SP</p></div>'
+    +'<div class="cab-r"><strong>RECIBO DE PAGAMENTO</strong><br>(11) 94515-6170</div></div>'
+    +'<div class="verde"><div class="ck">\u2713</div><div><h2>PAGAMENTO RECEBIDO</h2><p>Aluguel semanal \u2014 ALS Locadora</p></div></div>'
+    +'<div class="body">'
+    +'<div class="nr"><div><label>N\u00ba do Recibo</label><strong>'+num+'</strong></div>'
+    +'<div style="text-align:right"><label>Data do Pagamento</label><strong>'+fmtDate(data)+'</strong></div></div>'
+    +'<div class="vbox"><div class="lbl">VALOR PAGO</div><div class="num">'+fmt(valor)+'</div>'
+    +'<div class="ext">'+valorExt+(antecipado?' &mdash; <b style="color:#166534">\u26a1 Desconto 10% antecipado</b>':'')+'</div></div>'
+    +'<table class="tbl">'
+    +'<tr><td>Locat\u00e1rio</td><td><strong>THAMI GOMES LAN\u00c7A CERVANTES</strong></td></tr>'
+    +'<tr><td>CPF</td><td>412.929.688-42</td></tr>'
+    +'<tr><td>Ve\u00edculo</td><td>VW Virtus 2019 \u2014 Prata \u2014 EWJ5F47</td></tr>'
+    +'<tr><td>Refer\u00eancia</td><td><strong style="color:#CC0000">Semana #'+(semId||'\u2014')+' \u00b7 '+ini+' a '+fim2+'</strong></td></tr>'
+    +'<tr><td>Pagamento</td><td>PIX \u2014 Chave: 63.550.267/0001-72</td></tr>'
+    +(obs?'<tr><td>Obs.</td><td>'+obs+'</td></tr>':'')
+    +'</table>'
+    +'<div class="decl">Declaro que recebi de <strong>THAMI GOMES LAN\u00c7A CERVANTES \u2014 CPF: 412.929.688-42</strong> '
+    +'a import\u00e2ncia de <strong>'+fmt(valor)+' ('+valorExt+')</strong> referente ao aluguel semanal '
+    +'do ve\u00edculo VW Virtus 2019 \u2014 Placa EWJ5F47, per\u00edodo de '+ini+' a '+fim2+'. Dou plena quita\u00e7\u00e3o.</div>'
+    +'<div class="sig">Anderson Luiz dos Santos<small>ALS Locadora \u2014 MEI \u00b7 CNPJ: 63.550.267/0001-72</small></div>'
+    +'<div class="footer">ALS Locadora \u2014 MEI \u2014 CNPJ: 63.550.267/0001-72 \u2014 Po\u00e1 - SP \u2014 (11) 94515-6170</div>'
+    +'</div>
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99998;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="width:48px;height:48px;border:4px solid #333;border-top-color:#CC0000;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+  <div style="color:#fff;font-size:14px;font-weight:600">Carregando dados da nuvem...</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</body></html>';
+  imprimirHTML(html);
+  fecharModal('modal-comprovante');
+  toast('\u2705 Comprovante aberto! Imprima ou salve como PDF.');
+}
+
+// ─── RESUMO KM PDF ───
+function abrirModalResumokm() {
+  var hoje = new Date();
+  var meses = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  document.getElementById('res-mes').value = meses[hoje.getMonth()]+'/'+hoje.getFullYear();
+  document.getElementById('res-ini').value = today();
+  if (state.kms.length) {
+    var sorted = state.kms.slice().sort(function(a,b){return new Date(a.data)-new Date(b.data);});
+    document.getElementById('res-km-ini').value = sorted[0].valor;
+    document.getElementById('res-km-fim').value = sorted[sorted.length-1].valor;
+  }
+  ['res-km-ini','res-km-fim'].forEach(function(id){
+    document.getElementById(id).oninput = atualizarPreviaKm;
+  });
+  atualizarPreviaKm();
+  document.getElementById('modal-resumokm').classList.add('open');
+}
+
+function atualizarPreviaKm() {
+  var ini = parseInt(document.getElementById('res-km-ini').value)||0;
+  var fim = parseInt(document.getElementById('res-km-fim').value)||0;
+  var prev = document.getElementById('res-previa');
+  if (!ini || !fim) { prev.innerHTML = 'Preencha os campos para ver a previa...'; return; }
+  var rodou = fim - ini;
+  var excedente = Math.max(0, rodou - 5500);
+  var cobranca = excedente * 1.8;
+  var proxLimite = fim + 5500;
+  prev.innerHTML =
+    '\ud83d\udccd KM inicio: <strong>'+ini.toLocaleString('pt-BR')+'</strong><br>'+
+    '\ud83d\udccd KM atual: <strong>'+fim.toLocaleString('pt-BR')+'</strong><br>'+
+    '\ud83d\udee3\ufe0f Rodou: <strong>'+(rodou>0?rodou.toLocaleString('pt-BR'):0)+' km</strong><br>'+
+    (excedente>0?'\u26a0\ufe0f Excedente: <strong style="color:#ef4444">'+excedente.toLocaleString('pt-BR')+' km = R$ '+cobranca.toFixed(2).replace('.',',')+'</strong><br>':'\u2705 Dentro da franquia<br>')+
+    '\ud83d\udcc5 Proximo mes ate: <strong style="color:#60a5fa">'+proxLimite.toLocaleString('pt-BR')+' km</strong>';
+}
+
+function emitirResumoKmPDF() {
+  var mes = document.getElementById('res-mes').value;
+  var ini = parseInt(document.getElementById('res-km-ini').value);
+  var fim = parseInt(document.getElementById('res-km-fim').value);
+  if (!mes||!ini||!fim) { toast('Preencha todos os campos!','error'); return; }
+  var rodou = fim - ini;
+  var excedente = Math.max(0, rodou - 5500);
+  var proxLimite = fim + 5500;
+  var cobranca = excedente * 1.8;
+  var pct = Math.min(100, Math.round((rodou/5500)*100));
+  var barColor = pct > 90 ? '#ef4444' : pct > 70 ? '#eab308' : '#22c55e';
+  var dataHoje = fmtDate(today());
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Resumo KM ALS</title>'
+    +'<style>body{font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:20px;background:#fff;color:#111}'
+    +'.cab{background:#0d0d0d;padding:16px 20px;border-top:5px solid #CC0000;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center}'
+    +'.cab h1{color:#CC0000;font-size:20px;margin:0;font-family:Arial Black,sans-serif}'
+    +'.cab p{color:#ff9999;font-size:10px;margin:3px 0 0}.cab-r{text-align:right;color:#ffcccc;font-size:11px}'
+    +'.subh{background:#1a1a1a;color:#aaa;padding:8px 20px;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:18px;border-radius:0 0 8px 8px}'
+    +'.sec-title{font-size:10px;font-weight:700;color:#CC0000;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #CC0000;padding-bottom:3px;margin:16px 0 10px}'
+    +'.tbl{width:100%;border-collapse:collapse;margin-bottom:14px}'
+    +'.tbl td{padding:7px 10px;font-size:12px;border-bottom:1px solid #f0f0f0}'
+    +'.tbl td:first-child{background:#f8f8f8;font-weight:700;color:#666;width:150px}'
+    +'.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}'
+    +'.kbox{background:#f8f8f8;border-radius:8px;padding:12px;text-align:center}'
+    +'.kbox .lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px}'
+    +'.kbox .num{font-size:22px;font-weight:900;color:#111;font-family:Arial Black,sans-serif}'
+    +'.vbox2{background:#fff5f5;border:2px solid #CC0000;border-radius:8px;text-align:center;padding:14px;margin-bottom:12px}'
+    +'.vbox2 .lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px}'
+    +'.vbox2 .num{font-size:30px;font-weight:900;color:#CC0000;font-family:Arial Black,sans-serif}'
+    +'.vbox2 .sub{font-size:11px;color:#555;margin-top:3px}'
+    +'.bar{background:#e8e8e8;border-radius:50px;height:14px;margin:8px 0;overflow:hidden}'
+    +'.bar-fill{height:100%;border-radius:50px}'
+    +'.bar-labels{display:flex;justify-content:space-between;font-size:10px;color:#888}'
+    +'.exc{background:#fef2f2;border:2px solid #ef4444;border-radius:8px;padding:12px;text-align:center;margin:10px 0}'
+    +'.exc .num{font-size:20px;font-weight:900;color:#ef4444}'
+    +'.ok{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px;text-align:center;font-size:12px;color:#166534;margin:10px 0}'
+    +'.prox{background:#eff6ff;border:2px solid #3b82f6;border-radius:8px;padding:14px;text-align:center}'
+    +'.prox .lbl{font-size:10px;color:#3b82f6;text-transform:uppercase;letter-spacing:1px}'
+    +'.prox .num{font-size:28px;font-weight:900;color:#1d4ed8;font-family:Arial Black,sans-serif}'
+    +'.prox .sub{font-size:11px;color:#555;margin-top:4px;line-height:1.6}'
+    +'.footer{text-align:center;font-size:9px;color:#aaa;border-top:1px solid #eee;padding-top:8px;margin-top:14px}'
+    +'@media print{body{padding:0}}</style></head><body>'
+    +'<div class="cab"><div><h1>ALS LOCADORA</h1><p>CNPJ: 63.550.267/0001-72 \u2014 MEI \u2014 Po\u00e1 - SP</p></div>'
+    +'<div class="cab-r"><strong>RESUMO DE QUILOMETRAGEM</strong><br>'+mes+'</div></div>'
+    +'<div class="subh">Motorista: Thami Gomes Lan\u00e7a Cervantes &nbsp;\u00b7&nbsp; EWJ5F47 &nbsp;\u00b7&nbsp; Emitido em '+dataHoje+'</div>'
+    +'<div class="sec-title">\ud83d\udccb Dados do Per\u00edodo</div>'
+    +'<table class="tbl">'
+    +'<tr><td>Motorista</td><td><strong>Thami Gomes Lan\u00e7a Cervantes</strong></td></tr>'
+    +'<tr><td>Ve\u00edculo</td><td>VW Virtus 2019 \u2014 Prata \u2014 EWJ5F47</td></tr>'
+    +'<tr><td>Per\u00edodo</td><td><strong>'+mes+'</strong></td></tr>'
+    +'<tr><td>Franquia Mensal</td><td><strong>5.500 km</strong></td></tr>'
+    +'<tr><td>Custo Excedente</td><td>R$ 1,80 por km acima da franquia</td></tr>'
+    +'</table>'
+    +'<div class="sec-title">\ud83d\udee3\ufe0f Quilometragem do M\u00eas</div>'
+    +'<div class="grid2">'
+    +'<div class="kbox"><div class="lbl">KM no In\u00edcio</div><div class="num">'+ini.toLocaleString('pt-BR')+'</div></div>'
+    +'<div class="kbox"><div class="lbl">KM Atual</div><div class="num">'+fim.toLocaleString('pt-BR')+'</div></div>'
+    +'</div>'
+    +'<div class="vbox2"><div class="lbl">KM Rodados no M\u00eas</div><div class="num">'+rodou.toLocaleString('pt-BR')+' km</div>'
+    +'<div class="sub">'+pct+'% da franquia de 5.500 km utilizada</div></div>'
+    +'<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div>'
+    +'<div class="bar-labels"><span>0 km</span><span>Franquia: 5.500 km</span></div>'
+    +(excedente>0
+      ?'<div class="exc"><div class="lbl" style="font-size:10px;color:#ef4444;text-transform:uppercase">\u26a0\ufe0f KM Excedente</div><div class="num">'+excedente.toLocaleString('pt-BR')+' km</div><div style="color:#ef4444;font-weight:700;margin-top:4px">Cobran\u00e7a: R$ '+cobranca.toFixed(2).replace('.',',')+'</div></div>'
+      :'<div class="ok"><strong>\u2705 Dentro da franquia!</strong> Restam '+(5500-rodou).toLocaleString('pt-BR')+' km dispon\u00edveis.</div>'
+    )
+    +'<div class="sec-title">\ud83d\udcc5 Pr\u00f3ximo M\u00eas</div>'
+    +'<div class="prox"><div class="lbl">Limite de KM para o Pr\u00f3ximo M\u00eas</div>'
+    +'<div class="num">'+proxLimite.toLocaleString('pt-BR')+' km</div>'
+    +'<div class="sub">Voc\u00ea est\u00e1 com <strong>'+fim.toLocaleString('pt-BR')+' km</strong> e pode rodar at\u00e9 mais 5.500 km.<br>'
+    +'Ultrapassando esse limite ser\u00e1 cobrado R$ 1,80 por km excedente.</div></div>'
+    +'<div class="footer">ALS Locadora \u2014 MEI \u2014 CNPJ: 63.550.267/0001-72 \u2014 Po\u00e1 - SP \u2014 (11) 94515-6170 \u2014 @alslocadora</div>'
+    +'
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99998;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="width:48px;height:48px;border:4px solid #333;border-top-color:#CC0000;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+  <div style="color:#fff;font-size:14px;font-weight:600">Carregando dados da nuvem...</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</body></html>';
+  imprimirHTML(html);
+  fecharModal('modal-resumokm');
+  toast('\u2705 Resumo KM aberto! Imprima ou salve como PDF.');
+}
+
+// ─── IMPRESSÃO VIA IFRAME ───
+function imprimirHTML(html) {
+  var existing = document.getElementById('als-print-frame');
+  if (existing) existing.remove();
+  var existBtn = document.getElementById('als-print-close');
+  if (existBtn) existBtn.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'als-print-frame';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;background:#fff;display:flex;flex-direction:column';
+
+  var toolbar = document.createElement('div');
+  toolbar.style.cssText = 'background:#0d0d0d;padding:10px 16px;display:flex;align-items:center;gap:10px;border-bottom:3px solid #CC0000;flex-shrink:0';
+  toolbar.innerHTML = '<span style="color:#CC0000;font-weight:800;font-size:16px;font-family:Arial Black">ALS LOCADORA</span>'
+    +'<span style="color:#666;font-size:12px;flex:1">Visualize o documento e clique em Imprimir para salvar como PDF</span>';
+
+  var btnPrint = document.createElement('button');
+  btnPrint.textContent = '🖨️ Imprimir / Salvar PDF';
+  btnPrint.style.cssText = 'background:#CC0000;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px';
+  btnPrint.onclick = function(){ iframe.contentWindow.print(); };
+
+  var btnClose = document.createElement('button');
+  btnClose.textContent = '✕ Fechar';
+  btnClose.style.cssText = 'background:#2a2a2a;color:#aaa;border:none;padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px';
+  btnClose.onclick = function(){ overlay.remove(); };
+
+  toolbar.appendChild(btnPrint);
+  toolbar.appendChild(btnClose);
+  overlay.appendChild(toolbar);
+
+  var iframe = document.createElement('iframe');
+  iframe.style.cssText = 'flex:1;border:none;width:100%';
+  overlay.appendChild(iframe);
+  document.body.appendChild(overlay);
+
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(html);
+  iframe.contentDocument.close();
+}
+
+</script>
+
+<!-- MODAL COMPROVANTE -->
+<div class="modal-overlay" id="modal-comprovante">
+  <div class="modal">
+    <h3>🖨️ Emitir Comprovante</h3>
+    <p>Gere um PDF de pagamento para enviar à Thami</p>
+    <div class="form-grid">
+      <div class="fg"><label>Semana Referência</label>
+        <select id="comp-semana" style="background:#111;border:1px solid #2a2a2a;border-radius:8px;color:#fff;padding:10px 12px;font-family:DM Sans,sans-serif;font-size:13px;width:100%">
+          <option value="">Selecione...</option>
+        </select>
+      </div>
+      <div class="fg"><label>Data do Pagamento</label><input type="date" id="comp-data"></div>
+      <div class="fg"><label>Valor Recebido (R$)</label><input type="number" id="comp-valor" placeholder="900.00" step="0.01"></div>
+      <div class="fg"><label>Nº do Recibo</label><input type="text" id="comp-num" placeholder="001/2026"></div>
+      <div class="fg fg-full"><label>Observação</label><input type="text" id="comp-obs" placeholder="Ex: Pago na sexta com desconto"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-red" onclick="emitirComprovantePDF()" style="flex:1">🖨️ Gerar PDF</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-comprovante')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESUMO KM -->
+<div class="modal-overlay" id="modal-resumokm">
+  <div class="modal">
+    <h3>📊 Resumo Mensal de KM</h3>
+    <p>Gere o relatório de quilometragem para a Thami</p>
+    <div class="form-grid">
+      <div class="fg"><label>Mês de Referência</label><input type="text" id="res-mes" placeholder="Ex: Maio/2026"></div>
+      <div class="fg"><label>Data Início do Período</label><input type="date" id="res-ini"></div>
+      <div class="fg"><label>KM no Início do Mês</label><input type="number" id="res-km-ini" placeholder="Ex: 106297"></div>
+      <div class="fg"><label>KM Atual (fim do período)</label><input type="number" id="res-km-fim" placeholder="Ex: 109500"></div>
+      <div class="fg fg-full" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px">
+        <div style="font-size:11px;color:#60a5fa;font-weight:700;margin-bottom:6px">PRÉVIA DO RESUMO</div>
+        <div id="res-previa" style="font-size:12px;color:#aaa;line-height:1.8">Preencha os campos para ver a prévia...</div>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-red" onclick="emitirResumoKmPDF()" style="flex:1">📊 Gerar PDF</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-resumokm')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99998;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="width:48px;height:48px;border:4px solid #333;border-top-color:#CC0000;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+  <div style="color:#fff;font-size:14px;font-weight:600">Carregando dados da nuvem...</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</body>
+</html>
